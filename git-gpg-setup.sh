@@ -28,6 +28,21 @@ key_id=$(gpg --list-secret-keys | grep 'sec' | awk '{print $2}' | cut -d '/' -f 
 echo "Configuring Git to use GPG key..."
 git config --global user.signingkey "$key_id"
 
+# Prompt the user to update their global Git configuration with the email matching the GPG key
+
+echo "Would you like to update your global Git configuration to use the email matching the GPG key that was created?"
+read -p "Enter y for yes or n for no (default: y): " update_git_config
+
+# If the user didn't enter any input or entered y, look up the email for the key and set the git configuration to use that email
+
+if [ -z "$update_git_config" ] || [ "$update_git_config" = "y" ]; then
+email=$(gpg --list-secret-keys --with-colons | grep '^uid' | cut -d ':' -f 10)
+git config --global user.email "$email"
+echo "Your global Git configuration has been updated to use the email $email."
+else
+echo "Your global Git configuration was not updated."
+fi
+
 # Check if pinentry-mac is installed and install it if necessary
 if ! command -v pinentry-mac > /dev/null; then
   echo "pinentry-mac is not installed. Checking Homebrew installation and installing 
