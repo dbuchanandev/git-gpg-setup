@@ -28,19 +28,17 @@ key_id=$(gpg --list-secret-keys | grep 'sec' | awk '{print $2}' | cut -d '/' -f 
 echo "Configuring Git to use GPG key..."
 git config --global user.signingkey "$key_id"
 
-# Prompt the user to update their global Git configuration with the email matching the GPG key
+# Check if the user wants to update their git configuration to use the email matching the GPG key
+read -p "Do you want to update your global git configuration to use the email matching the GPG key that was created? (Y/n) [Y]: " update_email
+update_email=${update_email:-y}
 
-echo "Would you like to update your global Git configuration to use the email matching the GPG key that was created?"
-read -p "Enter y for yes or n for no (default: y): " update_git_config
+if [ "$update_email" = "Y" ]; then
+  # Look up the email for the key
+  email=$(gpg --list-keys --with-colons "$key_id" | grep '^uid' | awk -F: '{print $10}')
 
-# If the user didn't enter any input or entered y, look up the email for the key and set the git configuration to use that email
-
-if [ -z "$update_git_config" ] || [ "$update_git_config" = "y" ]; then
-email=$(gpg --list-secret-keys --with-colons | grep '^uid' | cut -d ':' -f 10)
-git config --global user.email "$email"
-echo "Your global Git configuration has been updated to use the email $email."
-else
-echo "Your global Git configuration was not updated."
+  # Set the git configuration to use the email
+  git config --global user.email "$email"
+  echo "Git configuration updated to use email: $email"
 fi
 
 # Check if pinentry-mac is installed and install it if necessary
@@ -109,36 +107,38 @@ echo "."
 
 # Set GPG_TTY and start gpg-agent in Bash or Zsh
 if [ -f ~/.bash_profile ] && [ -f ~/.zshrc ]; then
-# Modify ~/.zshrc if both ~/.bash_profile and ~/.zshrc exist
-echo "Modifying ~/.zshrc to set GPG_TTY and start gpg-agent..."
-echo "if [ -f ~/.gnupg/gpg-agent.conf ]; then" >> ~/.zshrc
-echo " source ~/.gnupg/gpg-agent.env" >> ~/.zshrc
-echo " if ! pgrep -u "$(id -u)" gpg-agent > /dev/null; then" >> ~/.zshrc
-echo " gpg-agent --daemon --write-env-file ~/.gnupg/gpg-agent.env" >> ~/.zshrc
-echo " fi" >> ~/.zshrc
-echo "fi" >> ~/.zshrc
+  # Modify ~/.zshrc if both ~/.bash_profile and ~/.zshrc exist
+  echo "Modifying ~/.zshrc to set GPG_TTY and start gpg-agent..."
+  echo "export GPG_TTY=\$TTY" >> ~/.zshrc
+  echo "if [ -f ~/.gnupg/gpg-agent.conf ]; then" >> ~/.zshrc
+  echo "  source ~/.gnupg/gpg-agent.env" >> ~/.zshrc
+  echo "  if ! pgrep -u "$(id -u)" gpg-agent > /dev/null; then" >> ~/.zshrc
+  echo "    gpg-connect-agent updatestartuptty /bye" >> ~/.zshrc
+  echo "    gpg-agent --daemon --write-env-file ~/.gnupg/gpg-agent.env" >> ~/.zshrc
+  echo "  fi" >> ~/.zshrc
+  echo "fi" >> ~/.zshrc
 elif [ -f ~/.bash_profile ]; then
-
-# Modify ~/.bash_profile if only ~/.bash_profile exists
-
-echo "Modifying ~/.bash_profile to set GPG_TTY and start gpg-agent..."
-echo "if [ -f ~/.gnupg/gpg-agent.conf ]; then" >> ~/.bash_profile
-echo " source ~/.gnupg/gpg-agent.env" >> ~/.bash_profile
-echo " if ! pgrep -u "$(id -u)" gpg-agent > /dev/null; then" >> ~/.bash_profile
-echo " gpg-agent --daemon --write-env-file ~/.gnupg/gpg-agent.env" >> ~/.bash_profile
-echo " fi" >> ~/.bash_profile
-echo "fi" >> ~/.bash_profile
+  # Modify ~/.bash_profile if only ~/.bash_profile exists
+  echo "Modifying ~/.bash_profile to set GPG_TTY and start gpg-agent..."
+  echo "export GPG_TTY=\$TTY" >> ~/.bash_profile
+  echo "if [ -f ~/.gnupg/gpg-agent.conf ]; then" >> ~/.bash_profile
+  echo "  source ~/.gnupg/gpg-agent.env" >> ~/.bash_profile
+  echo "  if ! pgrep -u "$(id -u)" gpg-agent > /dev/null; then" >> ~/.bash_profile
+  echo "    gpg-connect-agent updatestartuptty /bye" >> ~/.bash_profile
+  echo "    gpg-agent --daemon --write-env-file ~/.gnupg/gpg-agent.env" >> ~/.bash_profile
+  echo "  fi" >> ~/.bash_profile
+  echo "fi" >> ~/.bash_profile
 else
-
-# Create ~/.bash_profile if neither file exists
-
-echo "Creating ~/.bash_profile to set GPG_TTY and start gpg-agent..."
-echo "if [ -f ~/.gnupg/gpg-agent.conf ]; then" >> ~/.bash_profile
-echo " source ~/.gnupg/gpg-agent.env" >> ~/.bash_profile
-echo " if ! pgrep -u "$(id -u)" gpg-agent > /dev/null; then" >> ~/.bash_profile
-echo " gpg-agent --daemon --write-env-file ~/.gnupg/gpg-agent.env" >> ~/.bash_profile
-echo " fi" >> ~/.bash_profile
-echo "fi" >> ~/.bash_profile
+  # Create ~/.bash_profile if neither file exists
+  echo "Creating ~/.bash_profile to set GPG_TTY and start gpg-agent..."
+  echo "export GPG_TTY=\$TTY" >> ~/.bash_profile
+  echo "if [ -f ~/.gnupg/gpg-agent.conf ]; then" >> ~/.bash_profile
+  echo "  source ~/.gnupg/gpg-agent.env" >> ~/.bash_profile
+  echo "  if ! pgrep -u "$(id -u)" gpg-agent > /dev/null; then" >> ~/.bash_profile
+  echo "    gpg-connect-agent updatestartuptty /bye" >> ~/.bash_profile
+  echo "    gpg-agent --daemon --write-env-file ~/.gnupg/gpg-agent.env" >> ~/.bash_profile
+  echo "  fi" >> ~/.bash_profile
+  echo "fi" >> ~/.bash_profile
 fi
 
 # Stop gpg-agent
