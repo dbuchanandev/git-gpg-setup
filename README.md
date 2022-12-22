@@ -12,7 +12,7 @@ This script installs and configures GPG (GNU Privacy Guard) on a macOS machine a
 
 ## How to use the script
 
-1. Download the script from [this link](https://raw.githubusercontent.com/dbuchanandev/git-gpg-setup/main/git-gpg-setup.sh) and save it as `git-gpg-setup.sh`.
+1. Download the script from [this link](https://github.com/dbuchanandev/git-gpg-setup/blob/main/git-gpg-setup.sh) and save it as `git-gpg-setup.sh`.
 2. Make the script executable by running the following command: `chmod +x git-gpg-setup.sh`
 3. Run the script by entering the following command: `./git-gpg-setup.sh`
 
