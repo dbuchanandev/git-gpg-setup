@@ -16,34 +16,9 @@ if ! command -v gpg > /dev/null; then
   brew install gpg
 fi
 
-# Generate a GPG key
-echo "Generating GPG key..."
-gpg --full-generate-key
-
-# List GPG keys to find the ID of the key you just created
-echo "Finding GPG key ID..."
-key_id=$(gpg --list-secret-keys | grep 'sec' | awk '{print $2}' | cut -d '/' -f 2)
-
-# Configure Git to use your GPG key
-echo "Configuring Git to use GPG key..."
-git config --global user.signingkey "$key_id"
-
-# Check if the user wants to update their git configuration to use the email matching the GPG key
-read -p "Do you want to update your global git configuration to use the email matching the GPG key that was created? (Y/n) [Y]: " update_email
-update_email=${update_email:-y}
-
-if [ "$update_email" = "Y" ]; then
-  # Look up the email for the key
-  email=$(gpg --list-keys --with-colons "$key_id" | grep '^uid' | awk -F: '{print $10}')
-
-  # Set the git configuration to use the email
-  git config --global user.email "$email"
-  echo "Git configuration updated to use email: $email"
-fi
-
 # Check if pinentry-mac is installed and install it if necessary
 if ! command -v pinentry-mac > /dev/null; then
-  echo "pinentry-mac is not installed. Checking Homebrew installation and installing 
+  echo "pinentry-mac is not installed. Checking Homebrew installation and installing
 pinentry-mac..."
   brew doctor
   brew install pinentry-mac
@@ -52,6 +27,32 @@ fi
 # Create gpg-agent configuration file
 echo "Creating gpg-agent configuration file..."
 echo "pinentry-program /usr/local/bin/pinentry-mac" > ~/.gnupg/gpg-agent.conf
+chmod 700 ~/.gnupg
+
+# Generate a GPG key
+echo "Generating GPG key..."
+gpg --full-generate-key
+
+# List GPG keys to find the ID of the key you just created
+echo "Finding GPG key ID..."
+key_id=$(gpg --list-secret-keys | awk '/sec/{getline; print}' | sort -k 3 -t '/' | tail -n 1 | cut -d '/' -f 2 | sed -e 's/^[ \t]*//')
+
+# Configure Git to use your GPG key
+echo "Configuring Git to use GPG key..."
+git config --global user.signingkey "$key_id"
+
+# Check if the user wants to update their git configuration to use the email matching the GPG key
+read -p "Do you want to update your global git configuration to use the email matching the GPG key that was created? (y/n) [y]: " update_email
+update_email=${update_email:-y}
+
+if [ "$update_email" = "y" ]; then
+  # Look up the email for the key
+  email=$(gpg --list-keys $key_id | awk '/uid/ {print $NF}' | sed 's/[<>]//g')
+
+  # Set the git configuration to use the email
+  git config --global user.email "$email"
+  echo "Git configuration updated to use email: $email"
+fi
 
 # Set the default input value to one month (30 days or 2592000 seconds)
 default_cache_ttl=2592000
@@ -106,15 +107,13 @@ fi
 echo "."
 
 # Set GPG_TTY and start gpg-agent in Bash or Zsh
-if [ -f ~/.bash_profile ] && [ -f ~/.zshrc ]; then
-  # Modify ~/.zshrc if both ~/.bash_profile and ~/.zshrc exist
+if [ -f ~/.zshrc ]; then
+  # Modify ~/.zshrc if it exists
   echo "Modifying ~/.zshrc to set GPG_TTY and start gpg-agent..."
   echo "export GPG_TTY=\$TTY" >> ~/.zshrc
   echo "if [ -f ~/.gnupg/gpg-agent.conf ]; then" >> ~/.zshrc
-  echo "  source ~/.gnupg/gpg-agent.env" >> ~/.zshrc
   echo "  if ! pgrep -u "$(id -u)" gpg-agent > /dev/null; then" >> ~/.zshrc
   echo "    gpg-connect-agent updatestartuptty /bye" >> ~/.zshrc
-  echo "    gpg-agent --daemon --write-env-file ~/.gnupg/gpg-agent.env" >> ~/.zshrc
   echo "  fi" >> ~/.zshrc
   echo "fi" >> ~/.zshrc
 elif [ -f ~/.bash_profile ]; then
@@ -122,10 +121,8 @@ elif [ -f ~/.bash_profile ]; then
   echo "Modifying ~/.bash_profile to set GPG_TTY and start gpg-agent..."
   echo "export GPG_TTY=\$TTY" >> ~/.bash_profile
   echo "if [ -f ~/.gnupg/gpg-agent.conf ]; then" >> ~/.bash_profile
-  echo "  source ~/.gnupg/gpg-agent.env" >> ~/.bash_profile
   echo "  if ! pgrep -u "$(id -u)" gpg-agent > /dev/null; then" >> ~/.bash_profile
   echo "    gpg-connect-agent updatestartuptty /bye" >> ~/.bash_profile
-  echo "    gpg-agent --daemon --write-env-file ~/.gnupg/gpg-agent.env" >> ~/.bash_profile
   echo "  fi" >> ~/.bash_profile
   echo "fi" >> ~/.bash_profile
 else
@@ -133,27 +130,18 @@ else
   echo "Creating ~/.bash_profile to set GPG_TTY and start gpg-agent..."
   echo "export GPG_TTY=\$TTY" >> ~/.bash_profile
   echo "if [ -f ~/.gnupg/gpg-agent.conf ]; then" >> ~/.bash_profile
-  echo "  source ~/.gnupg/gpg-agent.env" >> ~/.bash_profile
   echo "  if ! pgrep -u "$(id -u)" gpg-agent > /dev/null; then" >> ~/.bash_profile
   echo "    gpg-connect-agent updatestartuptty /bye" >> ~/.bash_profile
-  echo "    gpg-agent --daemon --write-env-file ~/.gnupg/gpg-agent.env" >> ~/.bash_profile
   echo "  fi" >> ~/.bash_profile
   echo "fi" >> ~/.bash_profile
 fi
 
 # Stop gpg-agent
 echo "Stopping gpg-agent..."
-if ! gpg-connect-agent killagent /bye; then
-  echo "Error: Failed to stop gpg-agent"
-  exit 1
-fi
+killall gpg-agent
 
 # Start gpg-agent
-echo "Starting gpg-agent..."
-if ! gpg-agent --daemon --write-env-file ~/.gnupg/gpg-agent.env; then
-  echo "Error: Failed to start gpg-agent"
-  exit 1
-fi
+gpg-connect-agent updatestartuptty /bye
 
 # Configure Git to use gpg as the GPG program
 
@@ -164,6 +152,7 @@ git config --global gpg.program gpg
 
 echo "Configuring Git to automatically sign commits with your GPG key..."
 git config --global commit.gpgsign true
+echo "        use-agent" >> ~/.gitconfig
 
 echo "Done! Git is now configured to use your GPG key stored in the macOS keychain with 
 pinentry-mac."
@@ -172,7 +161,13 @@ echo "You will only be prompted to enter the password for the GPG key once per y
 echo "Verifying the configuration..."
 
 # Create a test directory named "git-gpg-setup-verification-test"
-mkdir git-gpg-setup-verification-test
+if [ -d "git-gpg-setup-verification-test" ]; then
+  # If the directory already exists, delete it
+  rm -rf "git-gpg-setup-verification-test"
+fi
+
+# Create the directory
+mkdir "git-gpg-setup-verification-test"
 
 # Change into the test directory
 cd git-gpg-setup-verification-test
@@ -190,20 +185,22 @@ git commit --allow-empty -m "Test commit"
 # Verify the signature of the test commit
 git log --show-signature -1
 
-# Discard the test commit
-git reset --hard HEAD~1
-
-# Remove any untracked files and directories
-git clean -f -d
-
 # Navigate back to the parent directory
 cd ..
 
 # Remove the test directory
-rm -r git-gpg-setup-verification-test
+rm -rf "git-gpg-setup-verification-test"
 
 echo "Verification test completed."
 echo "If the signature and GPG key are displayed correctly, then your configuration is working as expected."
 
-echo -e "Visit the following URL to add your GPG key to your GitHub 
-account:\n\033]8;;https://docs.github.com/en/authentication/managing-commit-signature-verification/adding-a-gpg-key-to-your-github-account\033\\"
+# Ask the user if they want to show the public key
+echo "Do you want to print out the public key? (y/N)"
+read -p "N" print_key
+
+if [ "$print_key" = "y" ]; then
+  gpg --armor --export "$key_id"
+fi
+
+echo -e "Visit the following URL to add your GPG key to your GitHub account:\n\033[34mhttps://docs.github.com/en/authentication/managing-commit-signature-verification/adding-a-gpg-key-to-your-github-account\033[0m"
+
