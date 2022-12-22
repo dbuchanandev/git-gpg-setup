@@ -203,4 +203,3 @@ if [ "$print_key" = "y" ]; then
 fi
 
 echo -e "Visit the following URL to add your GPG key to your GitHub account:\n\033[34mhttps://docs.github.com/en/authentication/managing-commit-signature-verification/adding-a-gpg-key-to-your-github-account\033[0m"
-
