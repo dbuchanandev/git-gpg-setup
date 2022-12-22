@@ -12,7 +12,7 @@ This script installs and configures GPG (GNU Privacy Guard) on a macOS machine a
 
 ## How to use the script
 
-1. Download the script from [this link](https://github.com/dbuchanandev/git-gpg-setup/blob/main/git-gpg-setup.sh) and save it as `git-gpg-setup.sh`.
+1. Download the script from [this link](git-gpg-setup.sh) and save it as `git-gpg-setup.sh`.
 2. Make the script executable by running the following command: `chmod +x git-gpg-setup.sh`
 3. Run the script by entering the following command: `./git-gpg-setup.sh`
 
@@ -32,3 +32,6 @@ If the signature and GPG key are displayed correctly, then your configuration is
 
 Visit [this link](https://docs.github.com/en/authentication/managing-commit-signature-verification/adding-a-gpg-key-to-your-github-account) for documentation on how to add the GPG key to your GitHub account.
 
+## License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
